@@ -1,0 +1,80 @@
+import datetime
+import imaplib
+import calendar
+from envio_de_correo import enviar_correo
+
+class correo:
+    def __init__(self, cuerpo_correo):
+        self.cuerpo_correo = cuerpo_correo
+
+    def remitente(self):
+        posicion_envio = self.cuerpo_correo.find("nFrom:")
+        cadena = self.cuerpo_correo[posicion_envio + 7 :].split("\\")[0]
+        try:
+            correo = cadena.split("<")[1][:-1]
+        except IndexError:
+            correo = cadena
+        return correo
+    
+    def fecha_correo(self):
+        try:
+            fecha_hora = self.cuerpo_correo.split("\\")[4].split(", ")[1].split(" -")[0]
+        except IndexError:
+            pass
+
+        dia = "{:02d}".format(int(fecha_hora.split(" ")[0]))
+        mes = "{:02d}".format(list(calendar.month_abbr).index(fecha_hora.split(" ")[1]))
+        año = fecha_hora.split(" ")[2]
+
+        fecha_final = str(dia) + '/' + str(mes) + '/' + año
+        return fecha_final
+    
+    def hora_correo(self):
+        fecha_hora = self.cuerpo_correo.split("\\")[4].split(", ")[1].split(" -")[0]
+        hora = fecha_hora.split(" ")[3]
+        return hora
+
+def obtener_fecha_hoy():
+    dia_de_hoy = datetime.datetime.today()
+    if dia_de_hoy.month <= 9:
+        fecha = str(dia_de_hoy.day) + '/' + '0' + str(dia_de_hoy.month) + '/' +  str(dia_de_hoy.year)
+    else:
+         fecha = str(dia_de_hoy.day) + '/' + str(dia_de_hoy.month) + '/' +  str(dia_de_hoy.year)
+    return fecha
+
+# Conección con el servidor de gmail
+mail = imaplib.IMAP4_SSL('imap.gmail.com')
+mail.login('#############', '################')
+mail.list()
+
+mail.select("inbox") 
+result, data = mail.search(None, "ALL")
+
+ids = data[0] 
+id_list = ids.split() 
+
+#Recorrer los correos de Bancolombia
+for indice in range(1, 10000):
+    try:
+        latest_email_id = id_list[-indice]
+        result, data = mail.fetch(latest_email_id, "(RFC822)") 
+        cuerpo_correo = str(data[0][1])
+        email = correo(cuerpo_correo)
+
+        if email.remitente() == 'alertasynotificaciones@bancolombia.com.co':
+            posicion = cuerpo_correo.find("nle informa ")
+            tipo_trx = cuerpo_correo[posicion:].split(" ")[2]
+            cantidad = cuerpo_correo[posicion:].split(" ")[4]
+            print(email.fecha_correo() + ' ' + tipo_trx + ' ' + cantidad.split("$")[1])
+    except:
+        pass
+
+import emailpackage
+__import__('emailpackage')
+
+mensaje = 'El proceso ha terminado'
+email_envio = '####################'
+contraseña_email = '################'
+asunto = 'Notificaciones - Python'
+
+emailpackage.enviar_correo(mensaje, contraseña_email, email_envio, email_envio, asunto)
